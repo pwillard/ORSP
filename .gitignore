@@ -1,0 +1,46 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments and local Python tooling
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+
+# AsciiDoctor generated output
+# Keep docs/*.adoc as source; regenerate HTML/PDF when needed.
+/docs/*.html
+/docs/*.pdf
+
+# Local logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Open Rails Shape Packer working-file backups and scratch files
+*.PreORZIP
+*_orzip_gui_sample.s
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# Local environment/secrets
+.env
+.env.*
+*.local

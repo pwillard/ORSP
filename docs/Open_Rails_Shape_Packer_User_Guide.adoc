@@ -1,0 +1,512 @@
+= Open Rails Shape Packer User Guide
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:app-name: Open Rails Shape Packer
+:orzip: ORZIP
+:shape-file: `.S`
+:preorzip: `.PreORZIP`
+:revdate: 2026-08-20
+
+== Introduction
+
+{app-name} is a Windows desktop front-end for {orzip}, the Open Rails shape-file packing tool.
+It is intended for users who need to compress, uncompress, detect, or validate Open Rails {shape-file} shape files without typing {orzip} commands manually.
+
+The program works with local folders of Open Rails shape files.
+It scans the selected folder, shows the detected status of each shape file, lets you select the files you want, and then runs {orzip} for the selected operation.
+
+=== What the program does
+
+{app-name} can:
+
+* Scan a folder for Open Rails {shape-file} shape files.
+* Include subfolders during a scan.
+* Show whether each shape file appears to be compressed, uncompressed, or unknown.
+* Select compressed files or uncompressed files with one click.
+* Compress uncompressed shape files.
+* Uncompress compressed shape files.
+* Auto-detect the needed action for each selected file.
+* Detect and optionally verify shape-file type.
+* Validate shape files with {orzip}.
+* Create {preorzip} backups before compression or uncompression.
+* Show the live {orzip} output in the Output Log.
+
+=== What the program does not do
+
+{app-name} is a focused packing tool.
+It does not edit model geometry, texture modes, distance levels, or shape data.
+For those operations, use a shape-file editing tool such as Open Rails Shape File Manager.
+
+== Files included
+
+A normal standalone folder contains:
+
+[cols="1,3", options="header"]
+|===
+|File
+|Purpose
+
+|`Open_Rails_Shape_Packer_User_Guide.adoc`
+|This user guide.
+
+|`ORZIP_GUI.py`
+|The Python/Tkinter application source.
+
+|`Run_Open_Rails_Shape_Packer.bat`
+|Friendly Windows launcher. Use this to start the program.
+
+|`Run_ORZIP_GUI.bat`
+|Older launcher name, kept for compatibility.
+
+|`orzip.exe`
+|The {orzip} backend program.
+
+|`assets/OpenRailsShapePacker_RSS.ico`
+|Window/application icon.
+
+|`assets/OpenRailsShapePacker_RSS.png`
+|Banner image shown next to the program title.
+
+|`tools/build_rss_icon.py`
+|Developer/helper script used to regenerate the RSS/RailSimStuff icon.
+|===
+
+== Starting the program
+
+From Windows Explorer, open the program folder and double-click:
+
+[source,bat]
+----
+Run_Open_Rails_Shape_Packer.bat
+----
+
+From a command prompt in the program folder, you can also run:
+
+[source,bat]
+----
+python ORZIP_GUI.py
+----
+
+== Main window overview
+
+The main window is divided into these areas:
+
+* Title banner -- shows the program name and RailSimStuff/RSS image.
+* Shape Path -- the folder to scan for Open Rails shape files.
+* Mode -- the {orzip} action to run.
+* Selection -- which files will be acted on.
+* Shape Files -- the scanned file list.
+* Options -- safety and convenience options.
+* Status -- file counts and run-ready counts.
+* ORZIP -- the configured {orzip} program path and current state indicator.
+* Bottom action buttons -- `Scan`, `Run ORZIP`, `Abort`, `Exit`, and `Help`.
+* ORZIP Output Log -- live command output from {orzip}.
+
+If the window is smaller than the content, use the right-side scrollbar to reach lower sections.
+The Shape Files list also has its own scrollbar for folders with many entries.
+
+== Basic workflow
+
+Use this workflow for most tasks:
+
+. Choose a folder in the `Shape Path` row.
+. Press `Scan`.
+. Review the files in the `Shape Files` list.
+. Choose the files to process.
+. Choose the desired mode.
+. Confirm the options.
+. Press `Run ORZIP`.
+. Watch the `ORZIP Output Log` for progress, warnings, and the final exit code.
+
+[IMPORTANT]
+====
+Work on copies when possible, especially when processing original route, scenery, or rolling-stock files.
+Keep backups enabled unless you are working with disposable test files.
+====
+
+== Choosing a folder
+
+The `Shape Path` row controls the folder that will be scanned.
+
+* Type or paste a folder path directly into the field.
+* Use `Browse...` to pick a folder.
+* Use `Recent` to return to a recently scanned folder.
+
+After choosing a folder, press `Scan`.
+
+== Scanning shape files
+
+Press `Scan` to load the file list.
+During scanning, the state indicator changes from `READY` to `SCANNING`.
+For large folders, the indicator updates as files are found, for example:
+
+[source,text]
+----
+SCANNING 100
+SCANNING 200
+----
+
+The state returns to `READY` only after the Shape Files list has finished loading.
+
+If the folder does not exist, the state shows `NO FOLDER`.
+If the scan fails because of a filesystem error, it shows `SCAN ERROR`.
+
+== Shape Files list
+
+The Shape Files list shows the scanned `.S` files.
+
+[cols="1,3", options="header"]
+|===
+|Column
+|Meaning
+
+|File
+|The shape-file name.
+
+|Folder
+|The relative folder below the scanned Shape Path. A value of `.` means the file is directly in the scanned folder.
+
+|Size
+|Approximate file size in kilobytes.
+
+|Status
+|Detected shape-file state: `Compressed`, `Uncompressed`, or `Unknown`.
+|===
+
+You can select one file or multiple files in this list.
+Use the list scrollbar when many files are displayed.
+
+== Selection controls
+
+The Selection box controls which files the next `Run ORZIP` action will use.
+
+=== Use selected files
+
+`Use selected files` means only highlighted files in the Shape Files list will be processed.
+This is the safest mode for one-off work.
+
+=== Use all scanned files
+
+`Use all scanned files` processes every file currently shown by the scan.
+Use this only when you are sure the current list is exactly what you want.
+
+=== Use current folder only
+
+`Use current folder only` processes scanned files that are directly inside the selected Shape Path.
+It excludes files found in subfolders.
+
+=== Select Uncompressed
+
+`Select Uncompressed` highlights every scanned file whose status is `Uncompressed`.
+It also switches Selection mode to `Use selected files`.
+
+This is useful when you want to compress all unpacked shapes.
+
+=== Select Compressed
+
+`Select Compressed` highlights every scanned file whose status is `Compressed`.
+It also switches Selection mode to `Use selected files`.
+
+This is useful when you want to uncompress all packed shapes.
+
+=== Clear Selection
+
+`Clear Selection` removes all highlighted files and keeps Selection mode on `Use selected files`.
+
+=== Search
+
+The `Search` field filters the scan by file name.
+Type part of a file name before scanning or while working with the current folder.
+Use `Clear` to empty the search field.
+
+=== Include subfolders while scanning
+
+When enabled, the scan searches below the selected Shape Path.
+When disabled, the scan only checks files directly inside the selected folder.
+
+== Mode controls
+
+The Mode box chooses what {orzip} action will run.
+
+=== Auto-detect needed action
+
+Auto-detect decides the operation from each selected file's status:
+
+* `Compressed` files are uncompressed.
+* `Uncompressed` files are compressed.
+* `Unknown` files are skipped.
+
+This mode is convenient when a folder contains a mixture of packed and unpacked files.
+
+=== Compress uncompressed shapes
+
+This mode runs {orzip} compression on selected files.
+The program assumes maximum compression automatically.
+Users do not need to choose a compression level.
+
+=== Uncompress compressed shapes
+
+This mode runs {orzip} uncompression on selected files.
+
+=== Detect file type / verify compressed files
+
+This mode asks {orzip} to detect file type.
+When the `Verify compressed files during Detect` option is enabled, {orzip} also checks the declared compressed payload size.
+
+Detect mode does not intentionally change files.
+It is useful for inspection and troubleshooting.
+
+=== Validate shape files
+
+This mode asks {orzip} to validate the selected files.
+It is useful when you want to check files before or after packing work.
+
+== Options
+
+The Options box contains safety and convenience settings.
+
+=== Create .PreORZIP backup before changing files
+
+When enabled, {app-name} creates a backup beside each file before compression or uncompression.
+The backup name appends {preorzip} to the original file path.
+
+For example:
+
+[source,text]
+----
+bridge.s
+bridge.s.PreORZIP
+----
+
+Backups are only created for operations that change files, such as compress and uncompress.
+Detect and validate do not create backups.
+
+=== Skip files that already match the selected mode
+
+When enabled, files that already match the requested state are skipped.
+For example:
+
+* Compress mode skips files already detected as `Compressed`.
+* Uncompress mode skips files already detected as `Uncompressed`.
+
+=== Overwrite existing ORZIP outputs (--force)
+
+When enabled, {app-name} passes `--force` to {orzip} for compress and uncompress operations.
+Use this carefully because it allows {orzip} to overwrite existing output files.
+
+=== Verify compressed files during Detect
+
+When enabled, Detect mode passes `--verify` to {orzip}.
+This asks {orzip} to inflate compressed files and check the declared size.
+
+=== Confirm before Run
+
+When enabled, {app-name} asks for confirmation before running {orzip} on the selected files.
+This is recommended for normal use.
+
+== ORZIP Program block
+
+The ORZIP block contains the configured {orzip} program path.
+The field is labeled `Program:`.
+
+Normally, the program should find the bundled `orzip.exe` automatically.
+If needed, use `Browse...` in this block to locate a different `orzip.exe`.
+
+The state indicator appears below the Program field.
+Common states are:
+
+[cols="1,3", options="header"]
+|===
+|State
+|Meaning
+
+|READY
+|The program is idle and the Shape Files list is ready.
+
+|SCANNING
+|A folder scan is in progress.
+
+|SCANNING 100
+|A large scan is in progress and at least 100 files have been listed.
+
+|RUNNING
+|{orzip} is currently running.
+
+|ABORTING
+|Abort was requested.
+
+|NO FOLDER
+|The selected Shape Path does not exist or is not a folder.
+
+|SCAN ERROR
+|The scan failed.
+|===
+
+== Action buttons
+
+The bottom action buttons stay visible at the bottom of the window.
+
+[cols="1,3", options="header"]
+|===
+|Button
+|Action
+
+|Scan
+|Scans the selected Shape Path and populates the Shape Files list.
+
+|Run ORZIP
+|Runs the selected Mode on the selected files.
+
+|Abort
+|Requests that the current {orzip} run stop. It is enabled only while {orzip} is running.
+
+|Exit
+|Closes the program.
+
+|Help
+|Opens the built-in help window.
+|===
+
+== ORZIP Output Log
+
+The ORZIP Output Log shows what the program and {orzip} are doing.
+For each run, it shows:
+
+* The working folder.
+* The exact command being run.
+* {orzip} standard output and error output.
+* The {orzip} exit code.
+* The final success/failure summary.
+
+Use `Clear Log` to empty the log.
+Use `Copy Log` to copy the log text to the clipboard.
+
+If an operation fails, read the log first.
+It usually contains the {orzip} error message.
+
+== Common tasks
+
+=== Compress all uncompressed shapes in a folder
+
+. Choose the folder.
+. Press `Scan`.
+. Press `Select Uncompressed`.
+. Choose `Compress uncompressed shapes`.
+. Keep backups enabled.
+. Press `Run ORZIP`.
+. Review the ORZIP Output Log.
+
+=== Uncompress all compressed shapes in a folder
+
+. Choose the folder.
+. Press `Scan`.
+. Press `Select Compressed`.
+. Choose `Uncompress compressed shapes`.
+. Keep backups enabled.
+. Press `Run ORZIP`.
+. Review the ORZIP Output Log.
+
+=== Convert a mixed folder automatically
+
+. Choose the folder.
+. Press `Scan`.
+. Choose `Use all scanned files`, or select only the files you want.
+. Choose `Auto-detect needed action`.
+. Press `Run ORZIP`.
+
+[NOTE]
+====
+Auto-detect changes compressed files to uncompressed and uncompressed files to compressed.
+If you only want one direction, use Compress or Uncompress mode instead.
+====
+
+=== Check shape-file types without changing files
+
+. Choose the folder.
+. Press `Scan`.
+. Select files to inspect.
+. Choose `Detect file type / verify compressed files`.
+. Leave `Verify compressed files during Detect` enabled if you want the extra check.
+. Press `Run ORZIP`.
+. Read the ORZIP Output Log.
+
+=== Validate selected shape files
+
+. Choose the folder.
+. Press `Scan`.
+. Select the files to validate.
+. Choose `Validate shape files`.
+. Press `Run ORZIP`.
+. Read the ORZIP Output Log.
+
+== Troubleshooting
+
+=== No files appear after scanning
+
+Check that:
+
+* The Shape Path points to the correct folder.
+* The folder contains `.S` files.
+* `Include subfolders while scanning` is enabled if the files are in subfolders.
+* The Search field is not filtering out the files.
+
+=== The state says NO FOLDER
+
+The Shape Path does not currently point to an existing folder.
+Use `Browse...` to choose a valid folder and scan again.
+
+=== ORZIP is not found
+
+Check the ORZIP Program field.
+It should normally point to the bundled `orzip.exe` in the program folder.
+If it does not, use the ORZIP block's `Browse...` button to select `orzip.exe`.
+
+=== A file shows Unknown status
+
+The file may not be a supported Open Rails shape file, or it may be damaged.
+Use Detect or Validate mode and review the ORZIP Output Log.
+
+=== Run ORZIP does nothing
+
+Check that:
+
+* At least one file is selected, or Selection is set to `Use all scanned files`.
+* The selected Mode applies to the selected files.
+* The Output Log does not show an error.
+* The confirmation dialog was not cancelled.
+
+=== Compression or uncompression fails
+
+Read the ORZIP Output Log.
+The log shows the exact command, the output from {orzip}, and the exit code.
+
+If the file is important, restore from your original copy or from the {preorzip} backup before trying again.
+
+== Safety recommendations
+
+* Work on copies of valuable route, scenery, or rolling-stock files.
+* Keep `Create .PreORZIP backup before changing files` enabled.
+* Keep `Confirm before Run` enabled.
+* Use `Detect` or `Validate` before changing files if you are unsure of their state.
+* Review the ORZIP Output Log after every batch operation.
+
+== Glossary
+
+[glossary]
+Shape file::
+An Open Rails `.S` file containing shape/model data.
+
+Compressed shape::
+A shape file stored in ORZIP's packed/binary form.
+
+Uncompressed shape::
+A shape file stored as readable SIMISA text, often UTF-16 text.
+
+ORZIP::
+The backend command-line tool used by {app-name} to pack, unpack, detect, and validate Open Rails shape files.
+
+.PreORZIP backup::
+A backup copy created by {app-name} before changing a file.
