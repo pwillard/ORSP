@@ -57,3 +57,6 @@ Work on copies of route or rolling-stock files when possible. Keep `.PreORZIP` b
 ## Windows Executable
 
 A Windows executable version of the tool is packaged in the Releases section.
+
+## AsciiDoctor-PDF is needed to compile the DOCS into a PDF or HTML file.
+
