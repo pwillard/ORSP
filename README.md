@@ -53,3 +53,7 @@ The ORZIP command/path field only tells the GUI where `orzip.exe` is. The `Run O
 ## Safety
 
 Work on copies of route or rolling-stock files when possible. Keep `.PreORZIP` backups enabled unless you are processing disposable test copies.
+
+## Windows Executable
+
+A Windows executable version of the tool is packaged in the Releases section.

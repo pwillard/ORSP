@@ -1,0 +1,1 @@
+asciidoctor-pdf -v -o Open_Rails_Shape_Packer_User_Guide.pdf Open_Rails_Shape_Packer_User_Guide.adoc
