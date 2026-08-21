@@ -485,7 +485,7 @@ If the file is important, restore from your original copy or from the {preorzip}
 * Full source code and latest executable for ORZIP is available at https://github.com/pwillard/orzip
 * Full source code and latest executable for Open Rails Shape Packer is https://github.com/pwillard/orsp
 
-This is an early release 1.0.0 - There may be bugs, please report them.
+This is an early release 1.0.1 - There may be bugs, please report them.
 
 == Glossary
 

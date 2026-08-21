@@ -34,7 +34,7 @@ python ORZIP_GUI.py
 3. Select one or more `.S` files in the Shape Files list, use `Select Uncompressed` / `Select Compressed`, or change Selection to `Use all scanned files`.
 4. Pick the Mode: Auto-detect, Compress, Uncompress, Detect, or Validate.
 5. Press the bottom `Run ORZIP` button.
-6. Watch the `ORZIP Output Log` panel at the bottom of the window. It shows the exact command, live ORZIP stdout/stderr, and the ORZIP exit code. Use `Clear Log` or `Copy Log` as needed.
+6. Watch the `ORZIP Output Log` panel at the bottom of the window. It shows the exact command, live ORZIP stdout/stderr, warnings, and the ORZIP exit code. Use `Clear Log` or `Copy Log` as needed.
 
 The ORZIP command/path field only tells the GUI where `orzip.exe` is. The `Run ORZIP` button actually runs ORZIP.
 
@@ -47,6 +47,7 @@ The ORZIP command/path field only tells the GUI where `orzip.exe` is. The `Run O
 - Uncompress compressed shapes.
 - Detect/verify shape-file type.
 - Validate shape files.
+- Track successful runs with warnings separately from failures.
 - Optional `.PreORZIP` backups before changing files.
 - Optional overwrite (`--force`), subfolder scan, and unchanged-file skipping.
 

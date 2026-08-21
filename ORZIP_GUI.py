@@ -19,21 +19,100 @@ from tkinter import BOTH, BOTTOM, END, LEFT, RIGHT, VERTICAL, X, Y, BooleanVar, 
 from tkinter.scrolledtext import ScrolledText
 
 APP_NAME = "Open Rails Shape Packer"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 UNCOMPRESSED_MAGIC = "SIMISA@@@@@@@@@@JINX0s1t"
 CONFIG_DIR = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "ORZIPGui"
 CONFIG_FILE = CONFIG_DIR / "settings.ini"
 
-BG = "#f4f2ed"
-PANEL = "#f8f7f3"
-BORDER = "#8b6f5b"
-GREEN = "#dcefe2"
-GREEN_DARK = "#6f987c"
-READY = "#fff0c7"
-DISABLED = "#e3e3e3"
-LOG_BG = "#202020"
-LOG_FG = "#e8e8e8"
-ACCENT = "#7a4634"
+
+@dataclass(frozen=True)
+class ThemePalette:
+    app_bg: str
+    header_bg: str
+    panel_bg: str
+    input_bg: str
+    log_bg: str
+    log_fg: str
+    text_fg: str
+    help_fg: str
+    muted_fg: str
+    accent_fg: str
+    accent_border: str
+    warning_bg: str
+    danger_bg: str
+    button_bg: str
+    primary_button_bg: str
+    border: str
+    disabled_bg: str
+    disabled_fg: str
+    ready_bg: str
+    busy_bg: str
+    tree_selected_bg: str
+    tree_selected_fg: str
+
+
+THEMES: dict[str, ThemePalette] = {
+    "Light": ThemePalette(
+        app_bg="#f4f2ed",
+        header_bg="#eee9e1",
+        panel_bg="#f8f7f3",
+        input_bg="#ffffff",
+        log_bg="#202020",
+        log_fg="#f4f4f4",
+        text_fg="#2e2e2e",
+        help_fg="#555555",
+        muted_fg="#7b6b5c",
+        accent_fg="#7a4634",
+        accent_border="#8b6f5b",
+        warning_bg="#fff0c7",
+        danger_bg="#f0d6d6",
+        button_bg="#dcefe2",
+        primary_button_bg="#cfe3d6",
+        border="#8b6f5b",
+        disabled_bg="#e3e3e3",
+        disabled_fg="#777777",
+        ready_bg="#fff0c7",
+        busy_bg="#d9edf7",
+        tree_selected_bg="#cfe3d6",
+        tree_selected_fg="#000000",
+    ),
+    "Dark": ThemePalette(
+        app_bg="#2D2D2D",
+        header_bg="#262626",
+        panel_bg="#222222",
+        input_bg="#1B1B1B",
+        log_bg="#181818",
+        log_fg="#F0F0F0",
+        text_fg="#F0F0F0",
+        help_fg="#CDCDCD",
+        muted_fg="#B8B8B8",
+        accent_fg="#E2B27E",
+        accent_border="#CD8434",
+        warning_bg="#EBAA51",
+        danger_bg="#D65C4B",
+        button_bg="#343434",
+        primary_button_bg="#3A3A3A",
+        border="#5C5C5C",
+        disabled_bg="#2B2B2B",
+        disabled_fg="#707070",
+        ready_bg="#EBAA51",
+        busy_bg="#3A3A3A",
+        tree_selected_bg="#CD8434",
+        tree_selected_fg="#181818",
+    ),
+}
+
+# Backward-compatible names used during initial widget construction.
+BG = THEMES["Light"].app_bg
+PANEL = THEMES["Light"].panel_bg
+BORDER = THEMES["Light"].border
+GREEN = THEMES["Light"].button_bg
+GREEN_DARK = THEMES["Light"].accent_border
+READY = THEMES["Light"].ready_bg
+DISABLED = THEMES["Light"].disabled_bg
+LOG_BG = THEMES["Light"].log_bg
+LOG_FG = THEMES["Light"].log_fg
+ACCENT = THEMES["Light"].accent_fg
 
 
 @dataclass
@@ -110,6 +189,10 @@ def shape_status(path: Path) -> str:
     return "Unknown"
 
 
+def line_has_orzip_warning(line: str) -> bool:
+    return "warning:" in line.lower()
+
+
 def default_orzip_cmd() -> str:
     for folder in (app_dir(), bundled_dir()):
         for name in ("orzip.exe", "orzip"):
@@ -142,14 +225,18 @@ class ORZipGui:
         self.skip_unchanged = BooleanVar(value=self.config.getboolean("settings", "skip_unchanged", fallback=True))
         self.force_overwrite = BooleanVar(value=self.config.getboolean("settings", "force_overwrite", fallback=False))
         self.verify_detect = BooleanVar(value=self.config.getboolean("settings", "verify_detect", fallback=True))
+        saved_theme = self.config.get("settings", "theme", fallback="Light")
+        self.theme_name = StringVar(value=saved_theme if saved_theme in THEMES else "Light")
         self.confirm_run = BooleanVar(value=self.config.getboolean("settings", "confirm_run", fallback=True))
         self.records: list[ShapeRecord] = []
         self.item_paths: dict[str, Path] = {}
+        self.last_run_warnings = 0
         self.abort_requested = False
         self.worker: threading.Thread | None = None
 
         self.configure_style()
         self.build_ui()
+        self.apply_theme()
         self.scan()
 
     def apply_default_window_size(self) -> None:
@@ -166,15 +253,95 @@ class ORZipGui:
         self.root.geometry(f"{width}x{height}+{x}+{y}")
         self.root.minsize(860, 700)
 
+    def palette(self) -> ThemePalette:
+        return THEMES.get(self.theme_name.get(), THEMES["Light"])
+
     def configure_style(self) -> None:
+        colors = self.palette()
         style = ttk.Style(self.root)
         try:
             style.theme_use("clam")
         except Exception:
             pass
-        style.configure("Treeview", background="white", fieldbackground="white", rowheight=22, font=("Segoe UI", 9))
-        style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"), background="#e9e4dc")
-        style.map("Treeview", background=[("selected", "#cfe3d6")], foreground=[("selected", "black")])
+        style.configure(
+            "Treeview",
+            background=colors.input_bg,
+            fieldbackground=colors.input_bg,
+            foreground=colors.text_fg,
+            rowheight=22,
+            font=("Segoe UI", 9),
+            bordercolor=colors.border,
+            lightcolor=colors.border,
+            darkcolor=colors.border,
+        )
+        style.configure(
+            "Treeview.Heading",
+            font=("Segoe UI", 9, "bold"),
+            background=colors.header_bg,
+            foreground=colors.text_fg,
+            bordercolor=colors.border,
+        )
+        style.configure("TScrollbar", background=colors.button_bg, troughcolor=colors.app_bg, bordercolor=colors.border, arrowcolor=colors.text_fg)
+        style.configure("TMenubutton", background=colors.button_bg, foreground=colors.text_fg, bordercolor=colors.border)
+        style.map(
+            "Treeview",
+            background=[("selected", colors.tree_selected_bg)],
+            foreground=[("selected", colors.tree_selected_fg)],
+        )
+
+    def apply_theme(self) -> None:
+        colors = self.palette()
+        self.root.configure(bg=colors.app_bg)
+        self.configure_style()
+        self.apply_theme_to_widget(self.root, colors)
+        if hasattr(self, "ready_label"):
+            self.set_ready(self.ready_label.cget("text"), busy=self.ready_label.cget("text") in {"RUNNING", "SCANNING", "ABORTING"})
+
+    def apply_theme_to_widget(self, widget, colors: ThemePalette) -> None:
+        cls = widget.winfo_class()
+        parent_bg = colors.app_bg
+        try:
+            parent = widget.master
+            if parent is not None and parent.winfo_class() not in {"Tk", "Toplevel"}:
+                parent_bg = parent.cget("bg")
+        except Exception:
+            pass
+
+        try:
+            if cls == "Canvas":
+                widget.configure(bg=colors.app_bg, highlightbackground=colors.border)
+            elif cls == "Frame":
+                current = widget.cget("bg")
+                role_bg = colors.panel_bg if current.lower() in {PANEL.lower(), "#222222"} else colors.app_bg
+                widget.configure(bg=role_bg, highlightbackground=colors.border)
+            elif cls == "Labelframe":
+                widget.configure(bg=colors.panel_bg, fg=colors.accent_fg, highlightbackground=colors.border)
+            elif cls == "Label":
+                current_fg = str(widget.cget("fg")).lower()
+                fg = colors.accent_fg if current_fg in {ACCENT.lower(), "#c0925b", "#7b4f3f"} else colors.muted_fg if current_fg in {"#666", "#555", "#7b6b5c"} else colors.text_fg
+                widget.configure(bg=parent_bg, fg=fg)
+            elif cls in {"Button", "Menubutton"}:
+                label = str(widget.cget("text"))
+                bg = colors.primary_button_bg if label in {"Run ORZIP", "Scan"} else colors.button_bg
+                if str(widget.cget("state")) == "disabled":
+                    bg = colors.disabled_bg
+                widget.configure(bg=bg, fg=colors.text_fg, activebackground=colors.accent_border, activeforeground=colors.tree_selected_fg, disabledforeground=colors.disabled_fg, highlightbackground=colors.border)
+            elif cls in {"Checkbutton", "Radiobutton"}:
+                widget.configure(bg=parent_bg, fg=colors.text_fg, activebackground=parent_bg, activeforeground=colors.accent_fg, selectcolor=colors.input_bg, highlightbackground=colors.border)
+            elif cls == "Entry":
+                widget.configure(bg=colors.input_bg, fg=colors.text_fg, insertbackground=colors.text_fg, disabledbackground=colors.disabled_bg, disabledforeground=colors.disabled_fg, highlightbackground=colors.border)
+            elif cls == "Text":
+                widget.configure(bg=colors.log_bg, fg=colors.log_fg, insertbackground=colors.log_fg)
+            elif cls == "Toplevel":
+                widget.configure(bg=colors.app_bg)
+        except Exception:
+            pass
+        for child in widget.winfo_children():
+            self.apply_theme_to_widget(child, colors)
+
+    def change_theme(self, *_args) -> None:
+        self.save_config()
+        self.apply_theme()
 
     def load_config(self) -> configparser.ConfigParser:
         cp = configparser.ConfigParser()
@@ -196,6 +363,7 @@ class ORZipGui:
         self.config.set("settings", "force_overwrite", str(self.force_overwrite.get()))
         self.config.set("settings", "verify_detect", str(self.verify_detect.get()))
         self.config.set("settings", "confirm_run", str(self.confirm_run.get()))
+        self.config.set("settings", "theme", self.theme_name.get())
         with CONFIG_FILE.open("w", encoding="utf-8") as f:
             self.config.write(f)
 
@@ -328,6 +496,11 @@ class ORZipGui:
         Checkbutton(lf, text="Overwrite existing ORZIP outputs (--force)", variable=self.force_overwrite, bg=PANEL).grid(row=2, column=0, sticky="w", pady=2)
         Checkbutton(lf, text="Verify compressed files during Detect", variable=self.verify_detect, bg=PANEL).grid(row=3, column=0, sticky="w", pady=2)
         Checkbutton(lf, text="Confirm before Run", variable=self.confirm_run, bg=PANEL).grid(row=4, column=0, sticky="w", pady=2)
+        theme_row = Frame(lf, bg=PANEL)
+        theme_row.grid(row=5, column=0, sticky="w", pady=(8, 0))
+        Label(theme_row, text="Theme:", bg=PANEL).pack(side=LEFT)
+        self.theme_menu = ttk.OptionMenu(theme_row, self.theme_name, self.theme_name.get(), *THEMES.keys(), command=self.change_theme)
+        self.theme_menu.pack(side=LEFT, padx=(6, 0))
 
     def build_status_panel(self, parent: Frame) -> None:
         lf = self.panel(parent, "Status")
@@ -337,7 +510,7 @@ class ORZipGui:
         for c, h in enumerate(headers):
             Label(grid, text=h, bg=PANEL, font=("Segoe UI", 9, "bold")).grid(row=0, column=c, sticky="e", padx=8)
         self.status_vars = {}
-        for r, key in enumerate(["Total", "Compressed", "Uncompressed", "Unknown", "Selected", "Ready"], start=1):
+        for r, key in enumerate(["Total", "Compressed", "Uncompressed", "Unknown", "Selected", "Ready", "Warnings"], start=1):
             Label(grid, text=key, bg=PANEL).grid(row=r, column=0, sticky="w", padx=8, pady=2)
             a = StringVar(value="0")
             b = StringVar(value="0")
@@ -374,7 +547,7 @@ class ORZipGui:
         Label(log_buttons, text="ORZIP stdout/stderr appears here while the tool runs.", bg=BG, fg="#666").pack(side=LEFT)
         Button(log_buttons, text="Clear Log", command=self.clear_log).pack(side=RIGHT, padx=(6, 0))
         Button(log_buttons, text="Copy Log", command=self.copy_log).pack(side=RIGHT)
-        self.log = ScrolledText(log_panel, bg=LOG_BG, fg=LOG_FG, insertbackground=LOG_FG, height=7, wrap="word")
+        self.log = ScrolledText(log_panel, bg=LOG_BG, fg=LOG_FG, insertbackground=LOG_FG, height=12, wrap="word")
         self.log.pack(fill=BOTH, expand=True)
         self.log.insert(END, "Open Rails Shape Packer ready. Choose a folder, scan, select files, then click Run ORZIP.\n")
         self.log.config(state="disabled")
@@ -408,9 +581,14 @@ class ORZipGui:
         self.log_line("[ORZIP output begins]")
 
     def set_ready(self, text: str, busy: bool = False, abort_enabled: bool = False) -> None:
-        self.ready_label.config(text=text, bg=("#d9edf7" if busy else READY))
-        self.run_button.config(state=("disabled" if busy else "normal"))
-        self.abort_button.config(state=("normal" if abort_enabled else "disabled"), bg=("#f0d6d6" if abort_enabled else DISABLED))
+        colors = self.palette()
+        self.ready_label.config(text=text, bg=(colors.busy_bg if busy else colors.ready_bg), fg=colors.text_fg)
+        self.run_button.config(state=("disabled" if busy else "normal"), bg=(colors.disabled_bg if busy else colors.primary_button_bg))
+        self.abort_button.config(
+            state=("normal" if abort_enabled else "disabled"),
+            bg=(colors.danger_bg if abort_enabled else colors.disabled_bg),
+            fg=colors.text_fg if abort_enabled else colors.disabled_fg,
+        )
 
     def browse_folder(self) -> None:
         folder = filedialog.askdirectory(initialdir=self.route_path.get() or os.getcwd(), title="Select shape-file folder")
@@ -543,6 +721,7 @@ class ORZipGui:
             "Unknown": sum(1 for r in self.records if r.status == "Unknown"),
             "Selected": len(selected),
             "Ready": len(ready),
+            "Warnings": self.last_run_warnings,
         }
         run_counts = {
             "Total": len(ready),
@@ -551,6 +730,7 @@ class ORZipGui:
             "Unknown": sum(1 for r, _ in ready if r.status == "Unknown"),
             "Selected": len(ready),
             "Ready": len(ready),
+            "Warnings": 0,
         }
         for key, value in counts.items():
             self.status_vars[(key, "files")].set(str(value))
@@ -580,6 +760,8 @@ class ORZipGui:
         if self.confirm_run.get() and not messagebox.askyesno("Confirm ORZIP run", f"Run ORZIP on {len(jobs)} file(s)?"):
             return
         self.abort_requested = False
+        self.last_run_warnings = 0
+        self.update_status()
         self.clear_log()
         self.log_line(f"[Shape Packer] Starting ORZIP run for {len(jobs)} file(s).")
         self.worker = threading.Thread(target=self.run_worker, args=(jobs,), daemon=True)
@@ -598,7 +780,7 @@ class ORZipGui:
         return cmd
 
     def run_worker(self, jobs: list[tuple[ShapeRecord, str]]) -> None:
-        ok = fail = skip = 0
+        ok = warn = fail = skip = 0
         for rec, op in jobs:
             if self.abort_requested:
                 skip += 1
@@ -623,28 +805,39 @@ class ORZipGui:
                     creationflags=creationflags,
                 )
                 assert proc.stdout is not None
+                file_had_warning = False
                 for line in proc.stdout:
-                    self.root.after(0, self.log_line, line.rstrip())
+                    stripped = line.rstrip()
+                    if line_has_orzip_warning(stripped):
+                        file_had_warning = True
+                    self.root.after(0, self.log_line, stripped)
                     if self.abort_requested and proc.poll() is None:
                         proc.terminate()
                 return_code = proc.wait()
                 self.root.after(0, self.log_line, f"[ORZIP exit code: {return_code}]")
                 if return_code == 0:
-                    ok += 1
+                    if file_had_warning:
+                        warn += 1
+                    else:
+                        ok += 1
                 else:
                     fail += 1
                     self.root.after(0, self.log_line, f"FAILED ({return_code}): {rec.path.name}")
             except Exception as e:
                 fail += 1
                 self.root.after(0, self.log_line, f"FAILED: {rec.path.name}: {e}")
-        self.root.after(0, self.finish_run, ok, fail, skip)
+        self.root.after(0, self.finish_run, ok, warn, fail, skip)
 
-    def finish_run(self, ok: int, fail: int, skip: int) -> None:
+    def finish_run(self, ok: int, warn: int, fail: int, skip: int) -> None:
+        self.last_run_warnings = warn
         self.scan()
-        self.set_ready("READY")
-        self.log_line(f"Run complete: {ok} succeeded, {fail} failed, {skip} skipped.")
+        self.set_ready("WARNINGS" if warn and not fail else "READY")
+        self.update_status()
+        self.log_line(f"Run complete: {ok} succeeded, {warn} warning(s), {fail} failed, {skip} skipped.")
         if fail:
-            messagebox.showwarning("ORZIP complete with errors", f"{ok} succeeded, {fail} failed, {skip} skipped. See log for details.")
+            messagebox.showwarning("ORZIP complete with errors", f"{ok} succeeded, {warn} warning(s), {fail} failed, {skip} skipped. See log for details.")
+        elif warn:
+            messagebox.showwarning("ORZIP complete with warnings", f"{ok} succeeded, {warn} warning(s), {skip} skipped. See log for details.")
         else:
             messagebox.showinfo("ORZIP complete", f"{ok} succeeded, {skip} skipped.")
 
@@ -653,9 +846,11 @@ class ORZipGui:
         self.set_ready("ABORTING", busy=True, abort_enabled=True)
 
     def show_help(self) -> None:
+        colors = self.palette()
         win = Toplevel(self.root)
         win.title(f"{APP_NAME} Help")
-        text = ScrolledText(win, width=92, height=30)
+        win.configure(bg=colors.app_bg)
+        text = ScrolledText(win, width=92, height=30, bg=colors.log_bg, fg=colors.log_fg, insertbackground=colors.log_fg)
         text.pack(fill=BOTH, expand=True, padx=8, pady=8)
         text.insert(END, f"""{APP_NAME} {APP_VERSION}\n\nThis is a focused front-end for ORZIP. It exposes the normal Open Rails shape-file compression workflow.\n\nWorkflow:\n  1. Browse to a folder containing Open Rails .S shape files.\n  2. Press Scan.\n  3. Select one or more files, or choose all/current-folder selection.\n  4. Choose Auto, Compress, Uncompress, Detect, or Validate.\n  5. Press Run ORZIP.\n\nModes:\n  Auto-detect: compressed files are uncompressed, uncompressed files are compressed.\n  Compress: runs ORZIP compress on suitable files.\n  Uncompress: runs ORZIP uncompress on suitable files.\n  Detect: reports file type; optional verify checks compressed payload size.\n  Validate: asks ORZIP to validate selected shape files.\n\nSafety:\n  Enable .PreORZIP backups when working on original assets. A backup is created beside each shape file before ORZIP changes it. Work on copies for valuable route or rolling-stock files.\n""")
         text.config(state="disabled")
@@ -676,6 +871,14 @@ def run_self_tests() -> int:
         assert shape_status(compressed) == "Compressed"
         assert not is_compressed_shape(other)
         assert default_orzip_cmd()
+        assert THEMES["Dark"].app_bg == "#2D2D2D"
+        assert THEMES["Dark"].accent_fg == "#E2B27E"
+        assert THEMES["Light"].app_bg == "#f4f2ed"
+        assert THEMES["Light"].log_bg == "#202020"
+        assert THEMES["Light"].log_fg == "#f4f4f4"
+        assert line_has_orzip_warning("  warning: trailing data after zlib stream: 2651 bytes")
+        assert line_has_orzip_warning("WARNING: trailing data after zlib stream: 7 bytes")
+        assert not line_has_orzip_warning("BRAN_7204_A.s: OK")
     print("orzip gui self-tests passed")
     return 0
 
